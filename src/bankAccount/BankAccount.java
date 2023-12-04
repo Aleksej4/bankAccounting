@@ -1,28 +1,26 @@
 package bankAccount;
 
-import java.io.BufferedWriter;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+import sql.SqlQueries;
+import java.sql.Connection;
+
 
 public class BankAccount implements Account {
     private String accountNumber;
-    private int balance = 0;
-    private final String transactionLogPath = "C:\\Users\\Aleksej\\Desktop\\LogsBankingSystem\\";
-    private String fileName;
+    private final int bankAccountId;
+    private int balance;
+    private final SqlQueries sqlQueries = new SqlQueries();
+    private final Connection connection;
 
-    public BankAccount(String accountNumber) {
-        setAccountNumber(accountNumber);
-        setFileName();
+    public BankAccount(Connection connection, int id) {
+        this.connection = connection;
+        this.bankAccountId = sqlQueries.getBankAccountId(connection, id);
+        setAccountNumber();
+        this.balance = sqlQueries.getBalance(connection, bankAccountId);
     }
 
-    private void setFileName() {
-        this.fileName = accountNumber + ".csv";
-    }
-
-    private void setAccountNumber(String accountNumber) {
-        this.accountNumber = accountNumber;
+    @Override
+    public void setAccountNumber() {
+        this.accountNumber = sqlQueries.getBankAccountNumber(connection, bankAccountId);
     }
 
     @Override
@@ -39,8 +37,7 @@ public class BankAccount implements Account {
     public boolean deposit(int amount) {
         if (amount > 0) {
             balance += amount;
-            logTransactions("Deposited to the account: " + amount + "\nCurrent balance: " + balance + "\n");
-            return true;
+            return updateBalance(balance, this.bankAccountId);
         }
         return false;
     }
@@ -49,22 +46,34 @@ public class BankAccount implements Account {
     public boolean withdraw(int amount) {
         if (amount <= balance && amount > 0) {
             balance -= amount;
-            logTransactions("Withdraw from the account: " + amount + "\nCurrent balance: " + balance + "\n");
-            return true;
+            return updateBalance(balance, this.bankAccountId);
         }
         return false;
     }
 
-    @Override
-    public void logTransactions(String log) {
-        LocalDateTime currentDateTime = LocalDateTime.now();
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-        String formattedDateTime = currentDateTime.format(formatter);
-
-        try (BufferedWriter writer = new BufferedWriter(new FileWriter(transactionLogPath + fileName, true))) {
-            writer.write(log + "Date: " + formattedDateTime + "\n\n");
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+    public boolean updateBalance(int amount, int id) {
+        if(sqlQueries.updateAccountBalance(connection, amount, id)){
+            this.balance = sqlQueries.getBalance(connection, bankAccountId);
+            return true;
         }
+
+        return false;
+    }
+
+    @Override
+    public boolean transferFunds(String accountNumber, int amount) {
+        int accountId = sqlQueries.getBankAccountIdByNumber(connection, accountNumber);
+
+        if (accountId == -1)
+            return false;
+
+        if(amount > 0 && amount <= balance){
+            //balance = balance - amount;
+            if (updateBalance(balance - amount, this.bankAccountId)){
+                return updateBalance(sqlQueries.getBalance(connection, accountId) + amount, accountId);
+            }
+        }
+
+        return false;
     }
 }

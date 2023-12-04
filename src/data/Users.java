@@ -3,6 +3,7 @@ package data;
 public abstract class Users {
     private String name;
     private String lastName;
+    private int id;
 
     public void setName(String name) {
         this.name = name;
@@ -10,6 +11,10 @@ public abstract class Users {
 
     public String getName() {
         return name;
+    }
+
+    public void setId(int id) {
+        this.id = id;
     }
 
     public void setLastName(String lastName) {
@@ -23,6 +28,4 @@ public abstract class Users {
     public String getFullName() {
         return getName() + " " + getLastName();
     }
-
-    public abstract boolean logIn(String input);
 }
